@@ -23,9 +23,9 @@ import exp_utility.classes
 import exp_utility.database
 
 # Dataset
-DATASET_PATH = "/home/peraro/source/play-rlbench/data-generation/datasets/generated-20ep"
+DATASET_PATH = "/home/peraro/source/play-rlbench/data-generation/datasets/arrange-train"
 # Experiment name
-EXPERIMENT_NAME = "ground-truth" # TODO: implements sanity check
+EXPERIMENT_NAME = "ground-truth-arrange-train" # TODO: implements sanity check
 # Results path
 RESULTS_PATH = f"/home/peraro/source/play-rlbench/experiments/results/{EXPERIMENT_NAME}"
 
@@ -74,6 +74,7 @@ def rollout_episode(demo: Demo, task: TaskEnvironment, episode_number: int) -> e
             episode_stats.success = True
             break
     print(f"Episode performed")
+    print(f"Success: {done}")
     # Compute inference total time
     episode_stats.inference_time = int(time.time()) - episode_stats.inference_time
     

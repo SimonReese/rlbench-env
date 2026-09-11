@@ -21,15 +21,15 @@ import exp_utility.database
 
 
 # Dataset
-DATASET_PATH = "/home/peraro/source/play-rlbench/data-generation/datasets/generated-20ep"
+DATASET_PATH = "/home/peraro/source/play-rlbench/data-generation/datasets/arrange-val"
 # Experiment name
-EXPERIMENT_NAME = "openpi-vggt" # TODO: implements sanity check
+EXPERIMENT_NAME = "openpi-vggt-fused-arrange-train+bs48-8000" # TODO: implements sanity check
 # Results path
-RESULTS_PATH = f"/home/peraro/source/play-rlbench/results/{EXPERIMENT_NAME}"
+RESULTS_PATH = f"/home/peraro/source/play-rlbench/experiments/results/{EXPERIMENT_NAME}"
 #RESULTS_PATH = f"/home/peraro/source/play-rlbench/experiments/results/{EXPERIMENT_NAME}"
 
 # Rollout const
-MAX_STEPS = 800
+MAX_STEPS = 500
 
 # Connection const
 REMOTE_IP = "titan2.dei.unipd.it"
@@ -91,22 +91,28 @@ def rollout_episode(demo: Demo, task: TaskEnvironment, episode_number: int, remo
 
         # Perform each action step
         for action in actions:
+            if done: break
             # Convert rotation into quaternions
             # temp fix for wrong output size
-            action_padded = action[:-1]
+            action_padded = action[:-1] #TODO: in policy/rlbench of openpi, set RLBENCHOUTPUTS to action of size 7 and delta 
             
             delta = action_padded[:3]
             rot_euler = action_padded[3:6]
-            gripper_aperture = action_padded[-1]
-            if gripper_aperture < 0.8: gripper_aperture = 0.0
+            gripper_is_closed = action_padded[-1]
+            gripper_aperture = 1.0 - gripper_is_closed
+            #if gripper_aperture < 0.8: gripper_aperture = 0.0
             rot_quat = rlbench.utils.euler_to_quaternion(rot_euler)
             act = numpy.concatenate((delta, rot_quat, [gripper_aperture]))
             try:
                 episode_stats.steps += 1        
                 current_obs, reward, done = task.step(act)
                 stuck = False
+                # Check if task was done
             except InvalidActionError:
                 print("Cannot reach")
+                if stuck: 
+                    episode_stats.steps +=  9
+                    break
                 stuck = True
             # Store images
             front_camera.append(current_obs.front_rgb)
@@ -151,7 +157,7 @@ def main():
 
     tasks_list = os.listdir(DATASET_PATH)
     # Prepare output
-    exp_utility.database.make_folders(RESULTS_PATH, overwrite=True)
+    exp_utility.database.make_folders(RESULTS_PATH, overwrite=False)
 
     # Store dataset stats
     dataset_name = pathlib.Path(DATASET_PATH).parts[-1]
@@ -210,6 +216,7 @@ def main():
                     variation_stats.total_success += 1
                 else:
                     variation_stats.total_failed += 1
+                print("Task success.") if episode_stats.success else print("Task failed")
                 variation_stats.success_rate = variation_stats.total_success / variation_stats.total_episodes
             # All episodes completed
             # Store stats
