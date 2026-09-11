@@ -2,7 +2,7 @@
 This file consider an RLBench dataset to open each specific variationID for each task and play a specific episode/demo
 """
 
-from typing import Union
+from typing import List, Union
 
 import os
 import numpy
@@ -17,7 +17,11 @@ from rlbench.task_environment import TaskEnvironment
 import rlbench.utils
 
 # Dataset
-DATASET_PATH = "/home/simone/source/play-rlbench/data-generation/datasets/generated-20ep"
+DATASET_PATH = "/home/peraro/source/play-rlbench/data-generation/datasets/arrange-train"
+
+# Task filter - which task to test
+TASK_FILTER = ["arrange_objects"]
+
 # ENV
 HEADLESS = False
 # CAMERA CONFIGS
@@ -35,15 +39,16 @@ def rollout_episode(demo: Demo, task: TaskEnvironment, episode_number = None):
     for obs in demo:
         new_pose = obs.gripper_pose
         delta_action = rlbench.utils.delta_pose_ee(old_pose[:3], old_pose[3:], new_pose[:3], new_pose[3:])
-        print(f"Gripper joint positions {pretty_print_array(obs.gripper_joint_positions)}, is open: {obs.gripper_open}")
-        print(f"Open amount{rlbench.utils.get_panda_gripper_open_amount(obs.gripper_joint_positions)[0]} {obs.gripper_open=}")
-        print(f"Joint Intervals{task._scene.robot.gripper.get_joint_intervals()}")
+        #print(f"Gripper joint positions {pretty_print_array(obs.gripper_joint_positions)}, is open: {obs.gripper_open}")
+        #print(f"Open amount{rlbench.utils.get_panda_gripper_open_amount(obs.gripper_joint_positions)[0]} {obs.gripper_open=}")
+        #print(f"Joint Intervals{task._scene.robot.gripper.get_joint_intervals()}")
         #print(f"Start: {old_pose}\nTarget: {new_pose}\nDelta: {delta_action}")
         #print(f"Rotation will be {pretty_print_array(quaternion_to_euler(delta_action[3:]))}")
         
         _local_obs, reward, done = task.step(numpy.concatenate((delta_action, [obs.gripper_open])))
         old_pose = _local_obs.gripper_pose
     print(f"Task done")
+    print(f"Success: {done}")
 
 
 def main():
@@ -52,6 +57,7 @@ def main():
     env.launch()
 
     tasks_list = os.listdir(DATASET_PATH)
+    tasks_list = filter_task(tasks_list, TASK_FILTER)
 
     # Open all tasks envs
     for task_name in tasks_list:
@@ -100,6 +106,15 @@ def pretty_print_array(data: numpy.ndarray, printout=False, label="") -> Union[n
         print(f"{label}{pretty}")
         return
     return pretty
+
+def filter_task(tasks_list: List[str], keep_tasks = []):
+    if len(keep_tasks) == 0: return tasks_list
+    
+    filtered = []
+    for task in tasks_list:
+        if task in keep_tasks: filtered.append(task)
+    
+    return filtered
 
 if __name__ == "__main__":
     main()
