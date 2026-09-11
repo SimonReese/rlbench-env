@@ -11,7 +11,7 @@ from typing import List, Optional, Tuple
 import numpy
 import imageio
 
-from classes import EpisodeStats
+from .classes import EpisodeStats
 
 # Folders and files ------------------------------------
 def make_folders(folder_path: str, overwrite = False):
