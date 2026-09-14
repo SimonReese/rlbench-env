@@ -2,10 +2,10 @@
 DATASET_NAME="pickup-external" # "generated-20ep"
 SAVE_PATH="./data-generation/datasets/${DATASET_NAME}/"
 
-TASKS=("arrange_objects_external_pickup") # ("arrange_objects" "arrange_objects_external") # ("cube_container" "object_container" "container_place")
+TASKS=("arrange_objects") # ("arrange_objects_external_pickup") # ("arrange_objects" "arrange_objects_external") # ("cube_container" "object_container" "container_place")
 IMG_SIZE="224 224"
 PROCESSES=4
-EP_TASK=10
+EP_TASK=40
 VARIATIONS=-1
 ARM_ACTION_MODE="JointVelocity" # Even if we add custom environment arm action mode in dataset_generator, the observations still have gripper tip position wrt world
 
@@ -22,6 +22,18 @@ python RLBench/rlbench/dataset_generator.py \
     #--arm_max_velocity $VAR \
     #--arm_max_acceleration $VAR 
 
+TASKS=("arrange_objects_external")
+EP_TASK=20
+VARIATIONS=(0 1 2 3)    # robots only
+
+python RLBench/rlbench/dataset_generator.py \
+    --save_path $SAVE_PATH \
+    --tasks $TASKS \
+    --image_size $IMG_SIZE \
+    --processes $PROCESSES \
+    --episodes_per_task $EP_TASK \
+    --variations $VARIATIONS \
+    --arm_action_mode $ARM_ACTION_MODE \
 
 # python RLBench/rlbench/dataset_generator.py \
 #     --save_path $SAVE_PATH \
