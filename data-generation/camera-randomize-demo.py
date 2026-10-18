@@ -26,7 +26,9 @@ from scipy.spatial.transform import Rotation
 DATASET_PATH = "datasets/arrange-train"
 
 # Updated Dataset Path
+UPDATE = False # Set to true to write new dataset
 UPDATED_DATASET_PATH = "datasets/arrange-train-lcv"
+RESUME = False
 OVERWRITE = False       # Set to true to remove overwrite new dataset
 CAMERA_POSE_FILE = "front_camera_pose.pkl" # numpy.ndarray
 
@@ -34,7 +36,7 @@ CAMERA_POSE_FILE = "front_camera_pose.pkl" # numpy.ndarray
 TASK_FILTER = [] #["arrange_objects"]
 
 # ENV
-HEADLESS = True
+HEADLESS = False
 # CAMERA CONFIGS
 CAMERA_IMAGE_SIZE = (224, 224)
 # OBSERVATION CONFIGS
@@ -53,6 +55,10 @@ def rollout_episode(demo: Demo, task: TaskEnvironment, episode_number):
 
     # Store the first observation
     random_camera_observation.append(_local_obs)
+    step = 100
+    while step > 0:
+        task.step()
+        step =  step -1
     # Reproduce each step
     for obs in demo:
         new_pose = obs.gripper_pose
@@ -87,10 +93,16 @@ def main():
     CAMERA_MATRIX = VisionSensor("cam_front").get_matrix()
 
     # Check updated dataset existence
-    os.makedirs(UPDATED_DATASET_PATH, exist_ok=OVERWRITE)
+    if RESUME: assert os.path.exists(UPDATED_DATASET_PATH)
+    elif UPDATE: os.makedirs(UPDATED_DATASET_PATH, exist_ok=OVERWRITE)
+
+    if not UPDATE:
+        front_cam = VisionSensor("cam_front")
+        front_cam.set_resolution([2048, 2048])
 
     tasks_list = os.listdir(DATASET_PATH)
-    tasks_list = filter_task(tasks_list, TASK_FILTER)
+    # Filter task if not resuming
+    if not RESUME: tasks_list = filter_task(tasks_list, TASK_FILTER)
 
     # Open all tasks envs
     for task_name in tasks_list:
@@ -109,8 +121,11 @@ def main():
             #demos = load_demos(dataset, task_name, variation)
 
             for num, demo in enumerate(episodes):
+                # Skip rollout if resuming
+                if UPDATE and os.path.exists(os.path.join(UPDATED_DATASET_PATH, task_name, f"variation{variation}", rlbench.utils.EPISODES_FOLDER, f"episode{num}")): 
+                    print(f"Avoid replay of existing episode {task_name}:{variation}:{num}")
+                    continue
                 rollout_episode(demo, task, num)
-            exit()
                 
     env.shutdown()
 
@@ -149,14 +164,14 @@ def save_demo(demo: Demo, task_name: str, variationID: int, episodeID: int, came
 def setup_env() -> Environment:
     global OBSERVATION_CONFIGS
     
-    cam_config = CameraConfig(image_size=CAMERA_IMAGE_SIZE)
+    cam_config = CameraConfig(image_size=CAMERA_IMAGE_SIZE, masks_as_one_channel = False)
     OBSERVATION_CONFIGS = ObservationConfig(
         left_shoulder_camera= cam_config,
         right_shoulder_camera= cam_config,
         overhead_camera= cam_config,
         wrist_camera= cam_config,
         front_camera= cam_config,
-        gripper_joint_positions=True
+        gripper_joint_positions=True,
     )
 
     arm_action_mode = EndEffectorPoseViaPlanning(absolute_mode=False, frame=RelativeFrame.EE)

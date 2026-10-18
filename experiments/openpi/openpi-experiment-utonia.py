@@ -24,19 +24,23 @@ UTONIA_DATASET_PATH = "/home/peraro/source/play-rlbench/data-generation/datasets
 UTONIA_EPISODE_EMBEDS_FILE = "embeds/spatial_pos_embeddings_single.npy"
 
 # Dataset
-DATASET_PATH = "/home/peraro/source/play-rlbench/data-generation/datasets/arrange-train"
+DATASET_PATH = "/home/peraro/source/play-rlbench/data-generation/datasets/arrange-train-lcv"
 # Experiment name
-EXPERIMENT_NAME = "openpi-vggt-utonia-fused-arrange-train+bs64-5000" # TODO: implements sanity check
+EXPERIMENT_NAME = "openpi-vggt-utonia-arrange-train-lcv+bs64-7000" # TODO: implements sanity check
 # Results path
 RESULTS_PATH = f"/home/peraro/source/play-rlbench/experiments/results/{EXPERIMENT_NAME}"
 #RESULTS_PATH = f"/home/peraro/source/play-rlbench/experiments/results/{EXPERIMENT_NAME}"
+
+# Camera variations
+CAMERA_VARIATIONS = True
+CAMERA_POSE_FILE = "front_camera_pose.pkl"
 
 # Rollout const
 MAX_STEPS = 500
 
 # Connection const
 REMOTE_IP = "titan2.dei.unipd.it"
-REMOTE_PORT = 4905
+REMOTE_PORT = 4909
 
 # Env Config
 HEADLESS = True
@@ -161,7 +165,7 @@ def main():
 
     tasks_list = os.listdir(DATASET_PATH)
     # Prepare output
-    exp_utility.database.make_folders(RESULTS_PATH, overwrite=False)
+    exp_utility.database.make_folders(RESULTS_PATH, overwrite=True)
 
     # Store dataset stats
     dataset_name = pathlib.Path(DATASET_PATH).parts[-1]
@@ -217,6 +221,8 @@ def main():
                                                f"variation{variation}", f"episode{num}", 
                                                UTONIA_EPISODE_EMBEDS_FILE)
                     spatial = load_embeds(embeds_path)
+                    # set camera
+                    if CAMERA_VARIATIONS: setup_camera(DATASET_PATH, task_name, variation, num)
                     episode_stats = rollout_episode(demo, task, num, remote_model, spatial=spatial)
                 # Fill variation stats
                 variation_stats.total_episodes += 1
@@ -255,6 +261,15 @@ def main():
     exp_utility.database.store_stats(dataset_stats, RESULTS_PATH, "dataset.json")
                 
     env.shutdown()
+
+def setup_camera(dataset_root: str, task_name: str, variationID: int, episodeID: int, poseFile: str = CAMERA_POSE_FILE):
+    from pyrep.objects import VisionSensor
+    import pickle
+    camera_pose: numpy.ndarray
+    front_cam = VisionSensor("cam_front")
+    with open(os.path.join(dataset_root, task_name, f"variation{variationID}", "episodes", f"episode{episodeID}", poseFile), "rb") as f:
+        camera_pose = pickle.load(f)
+    front_cam.set_pose(camera_pose)
 
 def setup_env() -> Environment:
     
